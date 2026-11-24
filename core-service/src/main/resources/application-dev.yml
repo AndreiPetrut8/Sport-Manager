@@ -1,0 +1,27 @@
+# Local development profile: file-based SQLite with WAL + busy_timeout for safe local concurrency
+spring:
+  # Fixed DEV-ONLY credentials for HTTP Basic (replaces the random password Spring generates per start).
+  # Set DEV_USER / DEV_PASSWORD in .env (see .env.example).
+  security:
+    user:
+      name: ${DEV_USER:manager}
+      password: ${DEV_PASSWORD}
+  datasource:
+    url: ${SQLITE_URL:jdbc:sqlite:./core-dev.db?journal_mode=WAL&busy_timeout=5000&foreign_keys=on}
+    driver-class-name: org.sqlite.JDBC
+    hikari:
+      # Single writer connection avoids SQLITE_BUSY lock contention across threads in dev
+      maximum-pool-size: 1
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+
+app:
+  messaging:
+    broker-enabled: ${BROKER_ENABLED:false}

@@ -1,0 +1,23 @@
+# Docker / Production profile: PostgreSQL (Single Source of Truth) + RabbitMQ enabled
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:teammanager}
+    username: ${DB_USER:tm_user}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:tm_broker}
+    password: ${RABBITMQ_PASSWORD}
+
+app:
+  messaging:
+    broker-enabled: true

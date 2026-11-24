@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: realtime-service
+  profiles:
+    default: dev
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:tm_broker}
+    password: ${RABBITMQ_PASSWORD}
+    listener:
+      simple:
+        auto-startup: ${BROKER_LISTENER_AUTO_START:false}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: true

@@ -1,0 +1,121 @@
+services:
+  core-db:
+    image: postgres:16-alpine
+    container_name: tm-core-db
+    environment:
+      POSTGRES_DB: teammanager
+      POSTGRES_USER: tm_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    ports:
+      - "5432:5432"
+    volumes:
+      - core_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tm_user -d teammanager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: tm-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: tm_broker
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Single Source of Truth: ONLY core-service connects to core-db
+  core-service:
+    build:
+      context: .
+      dockerfile: core-service/Dockerfile
+    container_name: tm-core-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: core-db
+      DB_PORT: 5432
+      DB_NAME: teammanager
+      DB_USER: tm_user
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: tm_broker
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    ports:
+      - "8080:8080"
+    depends_on:
+      core-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # Builds its thread-safe read projection exclusively from RabbitMQ events
+  realtime-service:
+    build:
+      context: .
+      dockerfile: realtime-service/Dockerfile
+    container_name: tm-realtime-service
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: tm_broker
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    ports:
+      - "8081:8081"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # Remote MCP Gateway + PII Anonymization Layer (reads/proposes via core-service HTTP API)
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
+    container_name: tm-mcp-server
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      CORE_SERVICE_BASE_URL: http://core-service:8080
+    ports:
+      - "8082:8082"
+    depends_on:
+      - core-service
+
+  # Autonomous event-driven agent consuming MCP tools
+  tactical-agent:
+    build:
+      context: .
+      dockerfile: tactical-agent/Dockerfile
+    container_name: tm-tactical-agent
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      MCP_SERVER_BASE_URL: http://mcp-server:8082
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: tm_broker
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    ports:
+      - "8083:8083"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+
+  web-client:
+    build:
+      context: ./web-client
+      dockerfile: Dockerfile
+    container_name: tm-web-client
+    ports:
+      - "3000:80"
+    depends_on:
+      - core-service
+      - realtime-service
+
+volumes:
+  core_db_data:

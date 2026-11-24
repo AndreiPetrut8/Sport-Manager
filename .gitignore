@@ -1,0 +1,33 @@
+target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### STS / IntelliJ / VS Code ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+### Secrets (use .env.example as template) ###
+.env
+.env.*
+!.env.example
+
+### Local runtime & portable tooling ###
+.jdk/
+.m2-home/
+*.db
+*.db-shm
+*.db-wal
+data/
+**/data/

@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: mcp-server
+
+server:
+  port: ${SERVER_PORT:8082}
+
+app:
+  core-service:
+    base-url: ${CORE_SERVICE_BASE_URL:http://localhost:8080}
